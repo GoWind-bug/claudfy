@@ -33,6 +33,12 @@
 .ld .acts2 button:hover{border-color:var(--a);color:var(--a)}
 .ld.empty{opacity:.45}
 .note{font:10px/1.5 var(--mono);color:var(--dim);margin-top:9px;letter-spacing:.04em}
+.lay{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+.lay .lgd{font:9px var(--mono);letter-spacing:.2em;color:var(--dim);align-self:center}
+.lay select{height:34px;background:var(--metal2);color:var(--fg);border:1px solid var(--line);border-radius:3px;font:10px var(--mono);padding:0 8px}
+.lay input[type=range]{flex:0 1 110px;min-width:70px}
+.lay button.on{border-color:var(--a);color:var(--a)}
+#bArm.on{border-color:#8fbf8a;color:#8fbf8a}
 .prog{height:3px;background:var(--line);margin-top:8px;position:relative}.prog i{position:absolute;left:0;top:0;bottom:0;background:var(--a);width:0}.prog s{position:absolute;top:-3px;width:1px;height:9px;background:var(--dim);opacity:.5}
 .booth{background:var(--metal);border:1px solid var(--line);border-radius:4px;padding:14px}
 .cmdf{display:flex;gap:8px}.cmdf input{flex:1;background:var(--ink);border:1px solid var(--line);color:var(--fg);padding:11px 12px;border-radius:3px;font:14px var(--body)}
@@ -66,6 +72,7 @@
   <form class="cmdf" id="cmdf"><input id="cmd" autocomplete="off" placeholder="a mood · a song · an artist · skip · bring in C · louder · energy up · like"><button>GO</button></form>
   <div class="chips" id="chips"></div>
   <div class="tr"><button id="bPrev">⏮</button><button id="bPlay">▶ / ⏸</button><button id="bSkip">SKIP ON PHRASE</button><button id="bLike">♥ LIKE</button><input type="range" id="vol" min="0" max="100"><button id="bFade" title="auto fades at track ends">FADES: ON</button><button id="bLog">LOG</button></div>
+  <div class="tr lay"><span class="lgd">LAYER</span><button id="bArm">ARM</button><button id="bTap" title="tap 4 times on the beat to lock the grid">TAP</button><button id="bLoop">LOOP: OFF</button><select id="pat"><option value="perc">perc</option><option value="four">four-on-floor</option><option value="hats">hats + clap</option><option value="roll">snare roll</option></select><input type="range" id="lvol" min="0" max="100" value="38" title="layer level"><button id="bRise">RISER</button><button id="bSweep">SWEEP</button><button id="bHit">IMPACT</button><span class="lgd" id="lrd">—</span></div>
   <div class="ticker" id="ticker"></div><div class="log" id="log" hidden></div>
   <div class="note">4 DECKS · A IS LIVE, B/C/D ARE LOADED FROM THE QUEUE — BRING IN RIDES THE FADER AND CUTS IN PAST THE INTRO, ON THE PHRASE.<br>EQ KILLS · FILTERS · LOOPS NEED THE RAW AUDIO FILE, WHICH SPOTIFY DOESN'T HAND OUT — FOR TRUE OVERLAP TURN ON <em style="color:var(--a);font-style:normal">CROSSFADE</em> IN SPOTIFY SETTINGS (PLAYBACK → CROSSFADE ~8S).</div>
  </section>
@@ -112,7 +119,9 @@ S.matchFor=nx=>{ const live=S.state&&S.state.item; const nb=S.bpmFor(nx); if(!li
 S.mixInto=async nx=>{ const p=S.state; if(!p||!p.item) return say("nothing playing"); const it=p.item; const {bpm,known}=S.bpmFor(it); const bar=240/bpm*1000, phrase=bar*8; const pos=p.progress_ms+(Date.now()-S.stateAt); let boundary=Math.ceil((pos+1200)/phrase)*phrase; if(boundary-pos>phrase+100) boundary-=phrase;
   const c=S.cueFor(nx); const m=S.matchFor(nx);
   say(`out on the phrase (bar ${Math.round(boundary/bar)}${known?"":"~"}, ${bpm} BPM) → ${nx.name} in at bar ${c.bars+1} (${c.bpm}${c.known?"":"~"} BPM, ${m.diff>0?"+":""}${m.diff}% · ${m.word})`);
-  S.manualFade=true; S.fading=true; const wait=boundary-pos-S.playLatency-bar/2; if(wait>0) await sleep(wait);
+  S.manualFade=true; S.fading=true; const wait=boundary-pos-S.playLatency-bar/2;
+  if(L.armed){ L.bpm=bpm; const lead=Math.min(2*bar,Math.max(0,wait-200)); if(wait-lead>0) await sleep(wait-lead); L.ride(lead/bar,2); if(lead>0) await sleep(lead); }
+  else if(wait>0) await sleep(wait);
   const duck=S.fade(30,bar/2); const t0=Date.now(); try{ await api("PUT","/me/player/play",{context_uri:S.ctxUri,offset:{uri:nx.uri},position_ms:c.ms}); }catch(e){ await api("POST","/me/player/next"); } S.playLatency=Math.round(0.7*S.playLatency+0.3*(Date.now()-t0));
   await duck; await S.fade(S.target,bar*2); S.fading=false; setTimeout(()=>S.manualFade=false,2500); S.lastUri=nx.uri; say(`cut on the 1 → ${nx.name}`,true); };
 S.smartSkip=async()=>{ const nx=(S.deckQ||[])[0]||await api("GET","/me/player/queue").then(q=>(q.queue||[])[0]).catch(()=>null); if(!nx) return S.next(); return S.mixInto(nx); };
@@ -142,6 +151,37 @@ S.cmd=async raw=>{ const t=raw.trim(); if(!t) return; const l=t.toLowerCase(); s
   if(tr&&tr.name.toLowerCase()===l){ S.manualFade=true; await S.fade(12,1200); await S.playTrack(tr.uri,tr.name+" — "+tr.artists.map(a=>a.name).join(", ")); await S.fade(S.target,1500); setTimeout(()=>S.manualFade=false,2000); return; }
   if(p) return S.setMood(t); if(tr){ S.manualFade=true; await S.fade(12,1200); await S.playTrack(tr.uri,tr.name+" — "+tr.artists.map(a=>a.name).join(", ")); await S.fade(S.target,1500); setTimeout(()=>S.manualFade=false,2000); return; }
   say("couldn't place: "+t); }catch(e){ say("✖ "+e.message); } };
+// ---------------- LAYER · live audio from this page, on top of Spotify (synthesised, nothing downloaded) ----------------
+const L=S.layer={ctx:null,bus:null,armed:false,loop:false,pat:"perc",vol:.38,bpm:120,i16:0,nextT:0,timer:null,taps:[],riding:false};
+L.arm=async()=>{ if(!L.ctx){ const AC=window.AudioContext||window.webkitAudioContext; L.ctx=new AC(); L.bus=L.ctx.createGain(); L.bus.gain.value=L.vol; const comp=L.ctx.createDynamicsCompressor(); comp.threshold.value=-18; comp.ratio.value=6; L.bus.connect(comp); comp.connect(L.ctx.destination); }
+  try{ await L.ctx.resume(); }catch(e){} L.armed=L.ctx.state==="running"; paintLay(); return L.armed; };
+L.noise=d=>{ const n=Math.max(1,Math.floor(L.ctx.sampleRate*d)); const b=L.ctx.createBuffer(1,n,L.ctx.sampleRate); const a=b.getChannelData(0); for(let i=0;i<n;i++) a[i]=Math.random()*2-1; const s=L.ctx.createBufferSource(); s.buffer=b; return s; };
+L.env=(node,when,peak,dec,atk)=>{ const g=L.ctx.createGain(); g.gain.setValueAtTime(0,when); g.gain.linearRampToValueAtTime(peak,when+(atk||0.004)); g.gain.exponentialRampToValueAtTime(0.0001,when+dec); node.connect(g); g.connect(L.bus); return g; };
+L.kick=(w,v)=>{ const o=L.ctx.createOscillator(); o.type="sine"; o.frequency.setValueAtTime(125,w); o.frequency.exponentialRampToValueAtTime(44,w+.11); L.env(o,w,v||.9,.26); o.start(w); o.stop(w+.3); };
+L.hat=(w,v)=>{ const s=L.noise(.05); const f=L.ctx.createBiquadFilter(); f.type="highpass"; f.frequency.value=7600; s.connect(f); L.env(f,w,v||.16,.045); s.start(w); s.stop(w+.06); };
+L.clap=(w,v)=>{ const s=L.noise(.14); const f=L.ctx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=1650; f.Q.value=1.2; s.connect(f); L.env(f,w,v||.32,.13,.002); s.start(w); s.stop(w+.16); };
+L.rim=(w,v)=>{ const o=L.ctx.createOscillator(); o.type="triangle"; o.frequency.setValueAtTime(430,w); L.env(o,w,v||.22,.055); o.start(w); o.stop(w+.07); };
+L.hit=(w)=>{ const o=L.ctx.createOscillator(); o.type="sine"; o.frequency.setValueAtTime(70,w); o.frequency.exponentialRampToValueAtTime(34,w+.4); L.env(o,w,.85,.6); o.start(w); o.stop(w+.7); const s=L.noise(.3); const f=L.ctx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1800; s.connect(f); L.env(f,w,.35,.32,.002); s.start(w); s.stop(w+.34); };
+L.riser=(secs)=>{ if(!L.armed) return; const w=L.ctx.currentTime, d=secs||3.2; const s=L.noise(d+.2); const f=L.ctx.createBiquadFilter(); f.type="bandpass"; f.Q.value=3.5; f.frequency.setValueAtTime(320,w); f.frequency.exponentialRampToValueAtTime(7200,w+d); s.connect(f); const g=L.ctx.createGain(); g.gain.setValueAtTime(.001,w); g.gain.exponentialRampToValueAtTime(.4,w+d*.92); g.gain.exponentialRampToValueAtTime(.001,w+d+.12); f.connect(g); g.connect(L.bus); s.start(w); s.stop(w+d+.2); };
+L.sweep=(secs)=>{ if(!L.armed) return; const w=L.ctx.currentTime, d=secs||2.2; const s=L.noise(d+.1); const f=L.ctx.createBiquadFilter(); f.type="lowpass"; f.Q.value=2; f.frequency.setValueAtTime(7000,w); f.frequency.exponentialRampToValueAtTime(260,w+d); s.connect(f); const g=L.ctx.createGain(); g.gain.setValueAtTime(.28,w); g.gain.exponentialRampToValueAtTime(.001,w+d); f.connect(g); g.connect(L.bus); s.start(w); s.stop(w+d+.1); };
+L.step=(i,w)=>{ const p=L.pat;
+  if(p==="four"){ if(i%4===0) L.kick(w); if(i%4===2) L.hat(w,.13); if(i===4||i===12) L.clap(w,.26); }
+  else if(p==="hats"){ if(i%2===0) L.hat(w,i%4===0?.17:.1); if(i===4||i===12) L.clap(w,.3); }
+  else if(p==="perc"){ if(i===4||i===12) L.rim(w,.2); if(i%4===2) L.hat(w,.11); }
+  else if(p==="roll"){ const dens=i<8?2:1; if(i%dens===0) L.clap(w,.1+i/16*.3); } };
+L.tick=()=>{ if(!L.ctx) return; const spb=60/L.bpm, s16=spb/4, hor=L.ctx.currentTime+.14;
+  while(L.nextT<hor){ if(L.loop||L.riding) L.step(L.i16%16,L.nextT); L.i16++; L.nextT+=s16; } };
+L.start=()=>{ if(L.timer) return; L.nextT=L.ctx.currentTime+.06; L.i16=0; L.timer=setInterval(L.tick,25); };
+L.setLoop=async on=>{ if(on&&!await L.arm()) return say("layer needs one click on ARM first (browser rule)",true); L.loop=on; if(on) L.start(); paintLay(); say(on?"layer in — "+L.pat+" @ "+L.bpm+" BPM":"layer out",true); };
+L.tap=async()=>{ if(!await L.arm()) return; const t=L.ctx.currentTime; L.taps=L.taps.filter(x=>t-x<2.6); L.taps.push(t);
+  if(L.taps.length>=4){ const d=[]; for(let i=1;i<L.taps.length;i++) d.push(L.taps[i]-L.taps[i-1]); const avg=d.reduce((a,b)=>a+b,0)/d.length; const b=Math.round(60/avg); if(b>=60&&b<=200) L.bpm=b; }
+  L.start(); L.i16=0; L.nextT=t+60/L.bpm/4; paintLay(); say("grid locked · "+L.bpm+" BPM"+(L.taps.length>=4?"":" (keep tapping to set tempo)"),true); };
+L.syncToTrack=()=>{ const it=S.state&&S.state.item; if(!it) return; const b=S.bpmFor(it); L.bpm=b.bpm; paintLay(); };
+// carry the groove across a cut so the swap is never bare
+L.ride=async(barsBefore,barsAfter)=>{ if(!L.armed) return; const bar=240/L.bpm*1000; L.riding=true; L.start(); L.riser(barsBefore*bar/1000);
+  setTimeout(()=>{ L.hit(L.ctx.currentTime+.02); }, barsBefore*bar);
+  setTimeout(()=>{ L.riding=false; }, (barsBefore+barsAfter)*bar); };
+function paintLay(){ const a=$("bArm"), lp=$("bLoop"); if(!a) return; a.classList.toggle("on",L.armed); a.textContent=L.armed?"ARMED":"ARM"; lp.textContent="LOOP: "+(L.loop?"ON":"OFF"); lp.classList.toggle("on",L.loop); $("lrd").textContent=(L.armed?L.bpm+" BPM GRID":"NOT ARMED"); }
 // ---------------- UI ----------------
 function paintChips(){ $("chips").innerHTML=Object.keys(S.MOODS).map(m=>`<button class="chip${S.mood===m?" on":""}" data-m="${m}">${m}</button>`).join(""); }
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -158,6 +198,12 @@ $("cmdf").onsubmit=e=>{ e.preventDefault(); const v=$("cmd").value; $("cmd").val
 $("bPrev").onclick=()=>api("POST","/me/player/previous").catch(e=>say("✖ "+e.message)); $("bPlay").onclick=async()=>{ try{ const p=S.state; if(p&&p.is_playing) await api("PUT","/me/player/pause"); else if(p&&p.device) await api("PUT","/me/player/play"); else await S.wake(); }catch(e){ say("✖ "+e.message); } };
 $("bSkip").onclick=()=>S.smartSkip(); $("bLike").onclick=()=>S.like(); $("vol").value=S.target; $("vol").onchange=e=>{ S.target=+e.target.value; S.fade(S.target,500); }; $("bLog").onclick=()=>{ $("log").hidden=!$("log").hidden; };
 $("bFade").onclick=()=>{ S.auto=!S.auto; $("bFade").textContent="FADES: "+(S.auto?"ON":"OFF"); };
+$("bArm").onclick=async()=>{ await L.arm(); L.syncToTrack(); say(L.armed?"layer armed — grid at "+L.bpm+" BPM":"browser blocked the audio layer",true); };
+$("bTap").onclick=()=>L.tap(); $("bLoop").onclick=()=>L.setLoop(!L.loop);
+$("pat").onchange=e=>{ L.pat=e.target.value; say("layer pattern → "+L.pat,true); };
+$("lvol").oninput=e=>{ L.vol=+e.target.value/100; if(L.bus) L.bus.gain.value=L.vol; };
+$("bRise").onclick=async()=>{ await L.arm(); L.riser(); }; $("bSweep").onclick=async()=>{ await L.arm(); L.sweep(); }; $("bHit").onclick=async()=>{ await L.arm(); L.hit(L.ctx.currentTime+.02); };
+paintLay();
 setInterval(()=>{ $("clock").textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); },1000);
 const row=(it,kind)=>{ const r=document.createElement("div"); r.className="row"; const img=document.createElement("img"); const ims=(it.album&&it.album.images)||it.images||[]; if(ims.length) img.src=ims[ims.length-1].url; r.appendChild(img); const t=document.createElement("div"); t.className="t"; t.textContent=it.name; const s=document.createElement("small"); s.textContent=it.artists?it.artists.map(a=>a.name).join(", "):(it.owner?it.owner.display_name:""); t.appendChild(s); r.appendChild(t); const acts=document.createElement("div"); acts.className="acts";
   const bp=document.createElement("button"); bp.textContent="PLAY"; bp.onclick=async()=>{ try{ S.manualFade=true; await S.fade(10,1500); if(kind==="track") await S.playTrack(it.uri,it.name+" — "+it.artists.map(a=>a.name).join(", ")); else { await S.playCtx(it.uri,it.name,true); S.mood=it.name; paintChips(); } await sleep(800); await S.fade(S.target,2500); setTimeout(()=>S.manualFade=false,2000); }catch(e){ say("✖ "+e.message); } }; acts.appendChild(bp);
