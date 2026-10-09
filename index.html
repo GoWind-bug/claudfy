@@ -136,7 +136,7 @@ body{margin:0;background:linear-gradient(180deg,#101114,#0b0c0e);color:var(--fg)
    </div>
    <div class="struct" id="struct"><canvas id="sc"></canvas><div class="ph" id="phead" style="left:0"></div></div>
    <div class="dmeta"><span id="sub"></span><span id="pos2"></span></div>
-   <div class="tr"><button id="bPrev">⏮ PREV</button><button id="bPlay">▶ / ⏸</button><button id="bSkip">MIX OUT ON PHRASE</button><button id="bLike">♥ LIKE</button><button id="bFade" title="auto fades at track ends">FADES: ON</button><button id="bLog">LOG</button></div>
+   <div class="tr"><button id="bPrev">⏮ PREV</button><button id="bPlay">▶ / ⏸</button><button id="bSkip">MIX OUT ON PHRASE</button><button id="bLike">♥ LIKE</button><button id="bAuto" title="I choose the next track, time the phrase and ride the layer across the cut">AUTO DJ: OFF</button><button id="bFade" title="auto fades at track ends">FADES: ON</button><button id="bLog">LOG</button></div>
   </section>
 
   <!-- MIXER -->
@@ -244,6 +244,7 @@ S.energy=async dir=>{ const n=S.state&&S.state.item; if(!n) return; const r=awai
 S.cmd=async raw=>{ const t=raw.trim(); if(!t) return; const l=t.toLowerCase(); say("» "+t); try{
   if(l==="skip"||l==="next") return S.smartSkip(); if(l==="hard skip") return S.next();
   { const dm=l.match(/^(?:bring\s*in|deck|mix\s*in)\s*([bcd])$/); if(dm) return S.bringIn("bcd".indexOf(dm[1])); }
+  { const am=l.match(/^auto( dj)?\s*(on|off)?$/); if(am) return S.setAuto(am[2]?am[2]==="on":!S.autoDJ); }
   if(l==="arm"||l==="layer on"){ await L.arm(); L.syncToTrack(); S.xfApply(); return say(L.armed?"layer armed · "+L.bpm+" BPM":"browser blocked it — click the page once",true); }
   { const lm=l.match(/^(?:loop|layer)\s*(on|off)$/); if(lm) return L.setLoop(lm[1]==="on"); }
   { const pm=l.match(/^(?:pattern|pat)\s+(perc|four|hats|roll)/); if(pm){ L.pat=pm[1]; $("pat").value=pm[1]; return say("layer pattern → "+pm[1],true); } }
@@ -268,6 +269,27 @@ S.cmd=async raw=>{ const t=raw.trim(); if(!t) return; const l=t.toLowerCase(); s
   if(tr&&tr.name.toLowerCase()===l){ S.manualFade=true; await S.fade(12,1200); await S.playTrack(tr.uri,tr.name+" — "+tr.artists.map(a=>a.name).join(", ")); await S.fade(S.target,1500); setTimeout(()=>S.manualFade=false,2000); return; }
   if(p) return S.setMood(t); if(tr){ S.manualFade=true; await S.fade(12,1200); await S.playTrack(tr.uri,tr.name+" — "+tr.artists.map(a=>a.name).join(", ")); await S.fade(S.target,1500); setTimeout(()=>S.manualFade=false,2000); return; }
   say("couldn't place: "+t); }catch(e){ say("✖ "+e.message); } };
+// ---------------- AUTO DJ · I pick, I time it, I ride it ----------------
+S.autoDJ=false; S.queueAll=[]; S.played=[];
+S.score=t=>{ const live=S.state&&S.state.item; if(!live) return 0; const lb=S.bpmFor(live).bpm, nb=S.bpmFor(t).bpm;
+  let r=nb/lb; if(r>1.6) r/=2; else if(r<0.625) r*=2; const ad=Math.abs((r-1)*100);
+  let sc=100-ad*7;                                   // tempo proximity dominates
+  if(S.played.includes(t.uri)) sc-=60;               // don't repeat
+  if(t.duration_ms<100000) sc-=30;                   // skits/interludes
+  const shared=t.artists.some(a=>live.artists.some(b=>b.name===a.name)); if(shared) sc-=18; // vary the artist
+  return sc; };
+S.bestNext=()=>{ const pool=(S.queueAll||[]).slice(0,14); if(!pool.length) return null;
+  return pool.map(t=>({t,s:S.score(t)})).sort((a,b)=>b.s-a.s)[0].t; };
+S.topUp=async()=>{ if((S.queueAll||[]).length>=6) return; const live=S.state&&S.state.item; if(!live) return;
+  try{ const seed=live.artists[0].name; const r=await api("GET","/search",null,{q:seed,type:"track",limit:12});
+    const live_bpm=S.bpmFor(live).bpm;
+    const picks=(r.tracks.items||[]).filter(t=>t.uri!==live.uri&&!S.played.includes(t.uri))
+      .map(t=>({t,s:S.score(t)})).sort((a,b)=>b.s-a.s).slice(0,3);
+    for(const {t} of picks) await S.queue(t.uri,t.name+" — "+t.artists.map(a=>a.name).join(", "));
+    if(picks.length) say("dug 3 more around "+seed+" to keep the deck fed",true);
+  }catch(e){} };
+S.setAuto=on=>{ S.autoDJ=on; const b=$("bAuto"); if(b){ b.textContent="AUTO DJ: "+(on?"ON":"OFF"); b.classList.toggle("on",on); }
+  say(on?"auto dj in — I'll pick, time the phrase and ride the layer across each cut":"auto dj out — you're driving"); };
 // ---------------- LAYER · live audio from this page, on top of Spotify (synthesised, nothing downloaded) ----------------
 const L=S.layer={ctx:null,bus:null,armed:false,loop:false,pat:"perc",vol:.38,bpm:120,i16:0,nextT:0,timer:null,taps:[],riding:false};
 L.arm=async()=>{ if(!L.ctx){ const AC=window.AudioContext||window.webkitAudioContext; L.ctx=new AC(); const C=L.ctx;
@@ -337,6 +359,7 @@ paintChips(); paintRack(); $("chips").onclick=e=>{ const b=e.target.closest(".ch
 $("cmdf").onsubmit=e=>{ e.preventDefault(); const v=$("cmd").value; $("cmd").value=""; S.cmd(v); };
 $("bPrev").onclick=()=>api("POST","/me/player/previous").catch(e=>say("✖ "+e.message)); $("bPlay").onclick=async()=>{ try{ const p=S.state; if(p&&p.is_playing) await api("PUT","/me/player/pause"); else if(p&&p.device) await api("PUT","/me/player/play"); else await S.wake(); }catch(e){ say("✖ "+e.message); } };
 $("bSkip").onclick=()=>S.smartSkip(); $("bLike").onclick=()=>S.like(); $("bLog").onclick=()=>{ $("log").hidden=!$("log").hidden; };
+$("bAuto").onclick=()=>S.setAuto(!S.autoDJ);
 $("bFade").onclick=()=>{ S.auto=!S.auto; $("bFade").textContent="FADES: "+(S.auto?"ON":"OFF"); $("bFade").classList.toggle("on",S.auto); };
 $("vol").value=S.target; $("v1").textContent=S.target;
 $("vol").oninput=e=>{ $("v1").textContent=e.target.value; };
@@ -407,8 +430,9 @@ async function loop(){ let lastQ=0; while(true){ try{ const p=await api("GET","/
     $("phead").style.left=(100*p.progress_ms/it.duration_ms)+"%";
     if(S._gridFor!==it.uri){ S._gridFor=it.uri; drawStruct(it,bpm,known); if(L.armed){ L.bpm=bpm; paintLay(); } }
     if(it.uri!==S.lastUri){ const first=!S.lastUri; S.lastUri=it.uri; say("now: "+it.name+" — "+it.artists.map(a=>a.name).join(", "),true); if(!first&&S.auto&&!S.manualFade){ S.fading=true; S.setVol(S.endFadeTo).then(()=>S.fade(S.target,S.riseMs)).then(()=>{S.fading=false;}); } }
+    if(S.autoDJ&&p.is_playing&&!S.fading&&!S.manualFade&&rem<(bar*8+5000)&&rem>2500){ const nx=S.bestNext(); if(nx){ S.played.push(it.uri); while(S.played.length>40) S.played.shift(); S.mixInto(nx).catch(e=>say("✖ "+e.message)); } }
     else if(S.auto&&p.is_playing&&rem<S.endFadeMs&&rem>1500&&!S.fading){ S.fading=true; S.fade(S.endFadeTo,Math.max(1500,rem-1200)).then(()=>setTimeout(()=>{S.fading=false;},6000)); }
-    if(Date.now()-lastQ>6000){ lastQ=Date.now(); api("GET","/me/player/queue").then(q=>{ S.deckQ=(q.queue||[]).slice(0,3); paintRack(); const Q=$("qList"); Q.innerHTML=""; (q.queue||[]).slice(0,8).forEach(t=>Q.appendChild(row(t,"track"))); }).catch(()=>{}); }
+    if(Date.now()-lastQ>6000){ lastQ=Date.now(); api("GET","/me/player/queue").then(q=>{ S.queueAll=(q.queue||[]); S.deckQ=S.queueAll.slice(0,3); paintRack(); if(S.autoDJ) S.topUp(); const Q=$("qList"); Q.innerHTML=""; (q.queue||[]).slice(0,8).forEach(t=>Q.appendChild(row(t,"track"))); }).catch(()=>{}); }
   } else { $("now").textContent="—"; $("artist").textContent="nothing playing"; $("sub").textContent=""; }
   }catch(e){ $("sub").textContent="…"+e.message; if(/not connected|expired/.test(e.message)){ $("gate").hidden=false; return; } } await sleep(900); } }
 // ---------------- boot ----------------
