@@ -10,11 +10,29 @@
 .brand{font-family:var(--display);font-size:22px}.brand em{font-style:italic;color:var(--a)}
 .leds{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;display:flex;gap:14px;flex-wrap:wrap}
 .decks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rack{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .deck{background:var(--metal);border:1px solid var(--line);border-radius:4px;padding:14px;display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center;min-width:0}
 .deck img{width:120px;height:120px;border-radius:3px;background:var(--ink);object-fit:cover;filter:saturate(.8)}
 .deck .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--a)}.deck.b .lbl{color:var(--b)}
 .deck .tt{font-family:var(--display);font-weight:600;font-size:19px;line-height:1.2;margin-top:4px}
 .deck .ta{color:var(--dim);margin-top:2px}.deck .nums{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:8px;font-variant-numeric:tabular-nums}.deck .nums b{color:var(--fg);font-weight:500}
+/* loaded decks B C D */
+.ld{background:var(--metal);border:1px solid var(--line);border-radius:4px;padding:11px;min-width:0;display:flex;flex-direction:column;gap:7px}
+.ld.live{border-color:var(--a)}
+.ld .top{display:flex;gap:9px;align-items:center;min-width:0}
+.ld img{width:46px;height:46px;border-radius:2px;background:var(--ink);object-fit:cover;filter:saturate(.8);flex:none}
+.ld .who{min-width:0;flex:1}
+.ld .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--b)}
+.ld .t2{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.ld .a2{color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ld .meta{font-family:var(--mono);font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;gap:6px}
+.ld .meta em{font-style:normal}
+.ld .meta .tight{color:#8fbf8a}.ld .meta .nudge{color:var(--a)}.ld .meta .clash{color:#c08b7a}
+.ld .acts2{display:flex;gap:5px}
+.ld .acts2 button{flex:1;height:26px;border:1px solid var(--line);background:var(--metal2);color:var(--dim);border-radius:2px;font:9px var(--mono);letter-spacing:.1em;cursor:pointer}
+.ld .acts2 button:hover{border-color:var(--a);color:var(--a)}
+.ld.empty{opacity:.45}
+.note{font:10px/1.5 var(--mono);color:var(--dim);margin-top:9px;letter-spacing:.04em}
 .prog{height:3px;background:var(--line);margin-top:8px;position:relative}.prog i{position:absolute;left:0;top:0;bottom:0;background:var(--a);width:0}.prog s{position:absolute;top:-3px;width:1px;height:9px;background:var(--dim);opacity:.5}
 .booth{background:var(--metal);border:1px solid var(--line);border-radius:4px;padding:14px}
 .cmdf{display:flex;gap:8px}.cmdf input{flex:1;background:var(--ink);border:1px solid var(--line);color:var(--fg);padding:11px 12px;border-radius:3px;font:14px var(--body)}
@@ -35,20 +53,21 @@
 .gate{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;text-align:center;padding:20px}.gate[hidden]{display:none}
 .gate h1{font-family:var(--display);font-weight:400;font-size:28px}.gate h1 em{font-style:italic;color:var(--a)}.gate p{color:var(--dim);max-width:420px}
 .gate button{margin-top:14px;padding:12px 22px;border:1px solid var(--a);color:var(--a);background:none;border-radius:3px;font:11px var(--mono);letter-spacing:.16em;cursor:pointer}
-@media(max-width:860px){.decks,.lib{grid-template-columns:1fr}.deck{grid-template-columns:90px 1fr}.deck img{width:90px;height:90px}}
+@media(max-width:860px){.decks,.lib,.rack{grid-template-columns:1fr}.deck{grid-template-columns:90px 1fr}.deck img{width:90px;height:90px}}
 </style></head><body>
 <div class="gate" id="gate"><div><h1>CLAUDFY <em>DJ</em></h1><p>Connect your Spotify once. The app keeps the session on this machine.</p><button id="login">CONNECT SPOTIFY</button><p style="font-size:12px">After approving, Spotify opens a page at 127.0.0.1 that fails to load — copy that page's full address and paste it here:</p><form id="pasteF" style="display:flex;gap:6px;max-width:460px;margin:0 auto"><input id="pasteUrl" placeholder="http://127.0.0.1:8888/callback?code=…" style="flex:1;background:#0f1012;border:1px solid #2c2e35;color:#e6e2da;padding:9px;border-radius:3px"><button type="submit">USE</button></form><p id="gateMsg"></p></div></div>
 <div class="rig">
  <div class="bar"><div class="brand">CLAUDFY <em>DJ</em></div><div class="leds"><span id="ledDev">—</span><span id="ledMood">MOOD —</span><span id="clock"></span></div></div>
  <div class="decks">
   <section class="deck a"><img id="artA" alt=""><div><div class="lbl">DECK A · LIVE</div><div class="tt" id="now">—</div><div class="ta" id="artist"></div><div class="nums"><b id="sub"></b></div><div class="prog" id="prog"><i></i></div></div></section>
-  <section class="deck b"><img id="artB" alt=""><div><div class="lbl">DECK B · NEXT</div><div class="tt" id="nextT">—</div><div class="ta" id="nextA"></div><div class="nums" id="nextN"></div></div></section>
+  <div class="rack" id="rack"></div>
  </div>
  <section class="booth">
-  <form class="cmdf" id="cmdf"><input id="cmd" autocomplete="off" placeholder="a mood · a song · an artist · skip · louder · quieter · energy up · like"><button>GO</button></form>
+  <form class="cmdf" id="cmdf"><input id="cmd" autocomplete="off" placeholder="a mood · a song · an artist · skip · bring in C · louder · energy up · like"><button>GO</button></form>
   <div class="chips" id="chips"></div>
   <div class="tr"><button id="bPrev">⏮</button><button id="bPlay">▶ / ⏸</button><button id="bSkip">SKIP ON PHRASE</button><button id="bLike">♥ LIKE</button><input type="range" id="vol" min="0" max="100"><button id="bFade" title="auto fades at track ends">FADES: ON</button><button id="bLog">LOG</button></div>
   <div class="ticker" id="ticker"></div><div class="log" id="log" hidden></div>
+  <div class="note">4 DECKS · A IS LIVE, B/C/D ARE LOADED FROM THE QUEUE — BRING IN RIDES THE FADER AND CUTS IN PAST THE INTRO, ON THE PHRASE.<br>EQ KILLS · FILTERS · LOOPS NEED THE RAW AUDIO FILE, WHICH SPOTIFY DOESN'T HAND OUT — FOR TRUE OVERLAP TURN ON <em style="color:var(--a);font-style:normal">CROSSFADE</em> IN SPOTIFY SETTINGS (PLAYBACK → CROSSFADE ~8S).</div>
  </section>
  <section class="lib">
   <div class="panel"><div class="ph"><span>YOUR SPOTIFY</span><div class="tabs"><button class="tab on" data-t="pl">PLAYLISTS</button><button class="tab" data-t="liked">LIKED</button><button class="tab" data-t="top">TOP</button></div></div><div class="list" id="libList"></div></div>
@@ -70,6 +89,8 @@ async function refresh(){ const t=tokens.get(); const r=await fetch("https://acc
 async function api(m,p,body,params){ let t=tokens.get(); if(!t) throw new Error("not connected"); if(Date.now()>t.expires_at) t=await refresh(); const r=await fetch("https://api.spotify.com/v1"+p+(params?"?"+new URLSearchParams(params):""),{method:m,headers:{Authorization:"Bearer "+t.access_token,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined}); if(r.status===401){ await refresh(); return api(m,p,body,params); } const txt=await r.text(); let d=null; try{ d=txt?JSON.parse(txt):null }catch(e){ d=txt } if(r.status>=400) throw new Error((d&&d.error&&(d.error.reason||d.error.message))||("HTTP "+r.status)); return d; }
 // ---------------- player + fades ----------------
 const S=window.S={vol:60,target:60,state:null,stateAt:0,lastUri:null,fading:false,auto:true,manualFade:false,mood:null,ctxUri:"spotify:playlist:6kE0nnENKlX5EtVq6Sb7Oh",endFadeMs:9000,endFadeTo:8,riseMs:4500,playLatency:450,myPlaylists:null,liked:null};
+S.api=(m,p,body,params)=>api(m,p,body,params);
+S.deckQ=[];
 S.setVol=async v=>{ v=Math.round(Math.max(0,Math.min(100,v))); try{ await api("PUT","/me/player/volume",null,{volume_percent:v}); S.vol=v; }catch(e){} };
 S.fade=async(to,ms)=>{ const from=S.vol; const n=Math.max(6,Math.round(ms/160)); for(let i=1;i<=n;i++){ await S.setVol(from+(to-from)*ease(i/n)); await sleep(ms/n); } };
 S.playCtx=async(uri,label,shuffle)=>{ await api("PUT","/me/player/shuffle",null,{state:shuffle?"true":"false"}); await api("PUT","/me/player/play",{context_uri:uri}); await api("PUT","/me/player/repeat",null,{state:"context"}); S.ctxUri=uri; say("▶ "+label); };
@@ -81,12 +102,21 @@ S.wake=async()=>{ const d=await api("GET","/me/player/devices"); const dev=d.dev
 S.BPM={"delilah":124,"marea":124,"rumble":130,"scared":132,"better|nimino":118,"hippies":118,"ecstasy|fabich":120,"foreign language":112,"lightenup":108,"tieduprightnow":112,"overnight|parcels":117,"instant crush":110,"get lucky":116,"around the world":121,"one more time":123,"dopamine|franc moody":118,"standing next to you":106,"crave you":118,"sunday best":92,"feel good inc":139,"dare|gorillaz":119,"walla walla":100,"four out of five":110,"life goes on|oliver tree":100,"let it happen":126};
 S.bpmFor=it=>{ const k=(it.name+"|"+it.artists.map(a=>a.name).join(",")).toLowerCase(); for(const key in S.BPM){ const [t,a]=key.split("|"); if(k.includes(t)&&(!a||k.includes(a))) return {bpm:S.BPM[key],known:true}; } return {bpm:120,known:false}; };
 S.next=async()=>{ S.manualFade=true; S.fading=true; try{ await S.fade(6,3200); await api("POST","/me/player/next"); await sleep(400); await S.setVol(6); await sleep(500); await S.fade(S.target,4200); say("⏭ mixed out → next",true); } finally{ S.fading=false; setTimeout(()=>S.manualFade=false,3000); } };
-S.smartSkip=async()=>{ const p=S.state; if(!p||!p.item) return say("nothing playing"); const it=p.item; const {bpm,known}=S.bpmFor(it); const bar=240/bpm*1000, phrase=bar*8; const pos=p.progress_ms+(Date.now()-S.stateAt); let boundary=Math.ceil((pos+1200)/phrase)*phrase; if(boundary-pos>phrase+100) boundary-=phrase;
-  const q=await api("GET","/me/player/queue"); const nx=(q.queue||[])[0]; if(!nx) return S.next(); const nb=S.bpmFor(nx); const nbar=240/nb.bpm*1000; const introBars=nx.duration_ms>200000?16:8; const cue=Math.round(introBars*nbar); const diff=((nb.bpm-bpm)/bpm*100).toFixed(0);
-  say(`skip → out on the phrase (bar ${Math.round(boundary/bar)}${known?"":"~"}, ${bpm} BPM) → ${nx.name} in at bar ${introBars+1} (${nb.bpm}${nb.known?"":"~"} BPM, ${diff>0?"+":""}${diff}%)`);
+// cue point: in past the intro, on a phrase line
+S.cueFor=nx=>{ const nb=S.bpmFor(nx); const nbar=240/nb.bpm*1000; const introBars=nx.duration_ms>200000?16:8; return {bars:introBars,ms:Math.round(introBars*nbar),bpm:nb.bpm,known:nb.known}; };
+// how well a loaded deck rides onto the live one
+S.matchFor=nx=>{ const live=S.state&&S.state.item; const nb=S.bpmFor(nx); if(!live) return {diff:0,word:"—",cls:""}; const lb=S.bpmFor(live).bpm; let r=nb.bpm/lb, half=false; if(r>1.6){ r/=2; half=true } else if(r<0.625){ r*=2; half=true }
+  const d=(r-1)*100, ad=Math.abs(d); const word=ad<=3?(half?"TIGHT ×2":"TIGHT"):ad<=8?(half?"NUDGE ×2":"NUDGE"):"CLASH"; const cls=ad<=3?"tight":ad<=8?"nudge":"clash";
+  return {diff:((nb.bpm-lb)/lb*100).toFixed(0),word,cls,bpm:nb.bpm,known:nb.known}; };
+// the actual mix: ride the live one out on the phrase, cut the new one in past its intro
+S.mixInto=async nx=>{ const p=S.state; if(!p||!p.item) return say("nothing playing"); const it=p.item; const {bpm,known}=S.bpmFor(it); const bar=240/bpm*1000, phrase=bar*8; const pos=p.progress_ms+(Date.now()-S.stateAt); let boundary=Math.ceil((pos+1200)/phrase)*phrase; if(boundary-pos>phrase+100) boundary-=phrase;
+  const c=S.cueFor(nx); const m=S.matchFor(nx);
+  say(`out on the phrase (bar ${Math.round(boundary/bar)}${known?"":"~"}, ${bpm} BPM) → ${nx.name} in at bar ${c.bars+1} (${c.bpm}${c.known?"":"~"} BPM, ${m.diff>0?"+":""}${m.diff}% · ${m.word})`);
   S.manualFade=true; S.fading=true; const wait=boundary-pos-S.playLatency-bar/2; if(wait>0) await sleep(wait);
-  const duck=S.fade(30,bar/2); const t0=Date.now(); try{ await api("PUT","/me/player/play",{context_uri:S.ctxUri,offset:{uri:nx.uri},position_ms:cue}); }catch(e){ await api("POST","/me/player/next"); } S.playLatency=Math.round(0.7*S.playLatency+0.3*(Date.now()-t0));
+  const duck=S.fade(30,bar/2); const t0=Date.now(); try{ await api("PUT","/me/player/play",{context_uri:S.ctxUri,offset:{uri:nx.uri},position_ms:c.ms}); }catch(e){ await api("POST","/me/player/next"); } S.playLatency=Math.round(0.7*S.playLatency+0.3*(Date.now()-t0));
   await duck; await S.fade(S.target,bar*2); S.fading=false; setTimeout(()=>S.manualFade=false,2500); S.lastUri=nx.uri; say(`cut on the 1 → ${nx.name}`,true); };
+S.smartSkip=async()=>{ const nx=(S.deckQ||[])[0]||await api("GET","/me/player/queue").then(q=>(q.queue||[])[0]).catch(()=>null); if(!nx) return S.next(); return S.mixInto(nx); };
+S.bringIn=async i=>{ const nx=(S.deckQ||[])[i]; if(!nx) return say("deck empty"); return S.mixInto(nx); };
 // ---------------- moods ----------------
 S.MOODS={"oo la la":{uri:"spotify:playlist:6kE0nnENKlX5EtVq6Sb7Oh",label:"oooo la laaa"},"sunset":{uri:"spotify:playlist:0ZXRWUksJNgB6XE4t6kPLC",label:"Sunsets 🌅"},"chill":{uri:"spotify:playlist:0VBVOVlVXp1UIt9qHD4an0",label:"Soothing"},"sukoon":{q:"Sukoon"},"focus":{uri:"spotify:playlist:6NVRBZaZXcCCo8ue2FlpVP",label:"Lyricless"},"r&b":{uri:"spotify:playlist:6tpgEB5WWLi5fa6QArJ6Gj",label:"mood : r&b"},"soul":{uri:"spotify:playlist:0tsu8EpRQ6766f2Pov9O5V",label:"Sweet Soul"},"hype":{uri:"spotify:playlist:72hqJrW6bp4ti9oMZPZX2z",label:"ESSENTIALS BANGERS !!!"},"party":{q:"Party Bangers"},"hindi":{q:"Hindies"},"ghazal":{uri:"spotify:playlist:0HfFbYJfKVgcZuVdSsRLOA",label:"Jashn - e - Gazal"},"coke studio":{q:"Coke Studio"},"gym":{uri:"spotify:playlist:4z4yBUBTQNlHLSoC2suYLb",label:"gym"},"covers":{uri:"spotify:playlist:1nDUbQX1vS15VLheD5FfWj",label:"My Favorite Covers"},"late night":{uri:"spotify:playlist:2PuBJ94f4yvYisCZiojXDL",label:"Rangeen nagar"}};
 S.findPl=async name=>{ if(!S.myPlaylists){ const a=await api("GET","/me/playlists",null,{limit:50}); const b=await api("GET","/me/playlists",null,{limit:50,offset:50}); S.myPlaylists=[...(a.items||[]),...(b.items||[])].filter(Boolean); } const n=name.toLowerCase(); return S.myPlaylists.find(p=>p.name.toLowerCase().includes(n)); };
@@ -95,6 +125,7 @@ S.setMood=async name=>{ const m=S.MOODS[name]; let uri,label; if(m&&m.uri){ uri=
 S.energy=async dir=>{ const n=S.state&&S.state.item; if(!n) return; const r=await api("GET","/search",null,{q:(dir>0?"upbeat ":"chill ")+n.artists[0].name,type:"track",limit:10}); const picks=(r.tracks.items||[]).filter(t=>t.uri!==n.uri).slice(0,3); for(const t of picks) await S.queue(t.uri,t.name+" — "+t.artists.map(a=>a.name).join(", ")); say("Energy "+(dir>0?"UP":"DOWN")+": queued "+picks.length+" around "+n.artists[0].name); };
 S.cmd=async raw=>{ const t=raw.trim(); if(!t) return; const l=t.toLowerCase(); say("» "+t); try{
   if(l==="skip"||l==="next") return S.smartSkip(); if(l==="hard skip") return S.next();
+  { const dm=l.match(/^(?:bring\s*in|deck|mix\s*in)\s*([bcd])$/); if(dm) return S.bringIn("bcd".indexOf(dm[1])); }
   if(l==="pause"||l==="stop"){ await api("PUT","/me/player/pause"); return say("⏸"); } if(l==="play"||l==="resume"){ await api("PUT","/me/player/play"); return say("▶"); }
   if(l==="louder"){ S.target=Math.min(100,S.target+12); $("vol").value=S.target; return S.fade(S.target,600); } if(l==="quieter"){ S.target=Math.max(5,S.target-12); $("vol").value=S.target; return S.fade(S.target,600); }
   if(/^vol(ume)?\s+\d+/.test(l)){ S.target=+l.match(/\d+/)[0]; $("vol").value=S.target; return S.fade(S.target,600); }
@@ -113,7 +144,16 @@ S.cmd=async raw=>{ const t=raw.trim(); if(!t) return; const l=t.toLowerCase(); s
   say("couldn't place: "+t); }catch(e){ say("✖ "+e.message); } };
 // ---------------- UI ----------------
 function paintChips(){ $("chips").innerHTML=Object.keys(S.MOODS).map(m=>`<button class="chip${S.mood===m?" on":""}" data-m="${m}">${m}</button>`).join(""); }
-paintChips(); $("chips").onclick=e=>{ const b=e.target.closest(".chip"); if(b) S.setMood(b.dataset.m); };
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function paintRack(){ const R=$("rack"); if(!R) return; const names=["B","C","D"]; const q=S.deckQ||[];
+  R.innerHTML=names.map((n,i)=>{ const t=q[i]; if(!t) return `<div class="ld empty"><div class="top"><img alt=""><div class="who"><div class="lbl">DECK ${n}</div><div class="t2">—</div><div class="a2">load from the library or search</div></div></div><div class="meta"><em>—</em><em>—</em></div><div class="acts2"><button disabled>BRING IN</button></div></div>`;
+    const c=S.cueFor(t), m=S.matchFor(t), im=(t.album&&t.album.images||[])[2]||(t.album&&t.album.images||[])[0];
+    return `<div class="ld" data-i="${i}"><div class="top"><img alt="" ${im?`src="${esc(im.url)}"`:""}><div class="who"><div class="lbl">DECK ${n}${i===0?" · NEXT":" · LOADED"}</div><div class="t2">${esc(t.name)}</div><div class="a2">${esc(t.artists.map(a=>a.name).join(", "))}</div></div></div>`
+      +`<div class="meta"><em>${c.bpm}${c.known?"":"~"} BPM · cue bar ${c.bars+1}</em><em class="${m.cls}">${m.diff>0?"+":""}${m.diff}% ${m.word}</em></div>`
+      +`<div class="acts2"><button data-bring="${i}">BRING IN</button><button data-prev="${i}">PREVIEW</button></div></div>`; }).join("");
+  R.querySelectorAll("[data-bring]").forEach(b=>b.onclick=()=>S.bringIn(+b.dataset.bring).catch(e=>say("✖ "+e.message)));
+  R.querySelectorAll("[data-prev]").forEach(b=>b.onclick=async()=>{ const t=(S.deckQ||[])[+b.dataset.prev]; if(!t) return; const c=S.cueFor(t); say(`preview: ${t.name} · ${c.bpm}${c.known?"":"~"} BPM · in at bar ${c.bars+1} · ${S.matchFor(t).word} against the live deck`,true); }); }
+paintChips(); paintRack(); $("chips").onclick=e=>{ const b=e.target.closest(".chip"); if(b) S.setMood(b.dataset.m); };
 $("cmdf").onsubmit=e=>{ e.preventDefault(); const v=$("cmd").value; $("cmd").value=""; S.cmd(v); };
 $("bPrev").onclick=()=>api("POST","/me/player/previous").catch(e=>say("✖ "+e.message)); $("bPlay").onclick=async()=>{ try{ const p=S.state; if(p&&p.is_playing) await api("PUT","/me/player/pause"); else if(p&&p.device) await api("PUT","/me/player/play"); else await S.wake(); }catch(e){ say("✖ "+e.message); } };
 $("bSkip").onclick=()=>S.smartSkip(); $("bLike").onclick=()=>S.like(); $("vol").value=S.target; $("vol").onchange=e=>{ S.target=+e.target.value; S.fade(S.target,500); }; $("bLog").onclick=()=>{ $("log").hidden=!$("log").hidden; };
@@ -121,7 +161,7 @@ $("bFade").onclick=()=>{ S.auto=!S.auto; $("bFade").textContent="FADES: "+(S.aut
 setInterval(()=>{ $("clock").textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); },1000);
 const row=(it,kind)=>{ const r=document.createElement("div"); r.className="row"; const img=document.createElement("img"); const ims=(it.album&&it.album.images)||it.images||[]; if(ims.length) img.src=ims[ims.length-1].url; r.appendChild(img); const t=document.createElement("div"); t.className="t"; t.textContent=it.name; const s=document.createElement("small"); s.textContent=it.artists?it.artists.map(a=>a.name).join(", "):(it.owner?it.owner.display_name:""); t.appendChild(s); r.appendChild(t); const acts=document.createElement("div"); acts.className="acts";
   const bp=document.createElement("button"); bp.textContent="PLAY"; bp.onclick=async()=>{ try{ S.manualFade=true; await S.fade(10,1500); if(kind==="track") await S.playTrack(it.uri,it.name+" — "+it.artists.map(a=>a.name).join(", ")); else { await S.playCtx(it.uri,it.name,true); S.mood=it.name; paintChips(); } await sleep(800); await S.fade(S.target,2500); setTimeout(()=>S.manualFade=false,2000); }catch(e){ say("✖ "+e.message); } }; acts.appendChild(bp);
-  if(kind==="track"){ const bq=document.createElement("button"); bq.textContent="CUE"; bq.onclick=()=>S.queue(it.uri,it.name+" — "+it.artists.map(a=>a.name).join(", ")).catch(e=>say("✖ "+e.message)); acts.appendChild(bq); }
+  if(kind==="track"){ const bq=document.createElement("button"); bq.textContent="LOAD"; bq.onclick=()=>S.queue(it.uri,it.name+" — "+it.artists.map(a=>a.name).join(", ")).catch(e=>say("✖ "+e.message)); acts.appendChild(bq); }
   r.appendChild(acts); return r; };
 S.showLib=async t=>{ document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.dataset.t===t)); const L=$("libList"); L.innerHTML="<div class='row'><div class='t'>loading…</div></div>"; let items=[],kind="track"; try{
   if(t==="pl"){ if(!S.myPlaylists) await S.findPl(""); items=S.myPlaylists; kind="playlist"; } else if(t==="liked"){ if(!S.liked){ S.liked=[]; for(let off=0;off<300;off+=50){ const r=await api("GET","/me/tracks",null,{limit:50,offset:off}); S.liked.push(...(r.items||[]).map(i=>i.track).filter(Boolean)); if(!r.next) break; } } items=S.liked; } else { const r=await api("GET","/me/top/tracks",null,{limit:50,time_range:"short_term"}); items=r.items; }
@@ -137,7 +177,7 @@ async function loop(){ let lastQ=0; while(true){ try{ const p=await api("GET","/
     if(S._gridFor!==it.uri){ S._gridFor=it.uri; const P=$("prog"); P.querySelectorAll("s").forEach(s=>s.remove()); for(let t=bar*8;t<it.duration_ms;t+=bar*8){ const s=document.createElement("s"); s.style.left=(100*t/it.duration_ms)+"%"; P.appendChild(s); } }
     if(it.uri!==S.lastUri){ const first=!S.lastUri; S.lastUri=it.uri; say("now: "+it.name+" — "+it.artists.map(a=>a.name).join(", "),true); if(!first&&S.auto&&!S.manualFade){ S.fading=true; S.setVol(S.endFadeTo).then(()=>S.fade(S.target,S.riseMs)).then(()=>{S.fading=false;}); } }
     else if(S.auto&&p.is_playing&&rem<S.endFadeMs&&rem>1500&&!S.fading){ S.fading=true; S.fade(S.endFadeTo,Math.max(1500,rem-1200)).then(()=>setTimeout(()=>{S.fading=false;},6000)); }
-    if(Date.now()-lastQ>6000){ lastQ=Date.now(); api("GET","/me/player/queue").then(q=>{ const nx=(q.queue||[])[0]; if(nx){ $("nextT").textContent=nx.name; $("nextA").textContent=nx.artists.map(a=>a.name).join(", "); const nb=S.bpmFor(nx); $("nextN").textContent=nb.bpm+(nb.known?"":"~")+" BPM · cue bar "+(nx.duration_ms>200000?17:9); const im2=nx.album.images[0]; if(im2&&$("artB").src!==im2.url) $("artB").src=im2.url; } const Q=$("qList"); Q.innerHTML=""; (q.queue||[]).slice(0,8).forEach(t=>Q.appendChild(row(t,"track"))); }).catch(()=>{}); }
+    if(Date.now()-lastQ>6000){ lastQ=Date.now(); api("GET","/me/player/queue").then(q=>{ S.deckQ=(q.queue||[]).slice(0,3); paintRack(); const Q=$("qList"); Q.innerHTML=""; (q.queue||[]).slice(0,8).forEach(t=>Q.appendChild(row(t,"track"))); }).catch(()=>{}); }
   } else { $("now").textContent="—"; $("artist").textContent="nothing playing"; $("sub").textContent=""; }
   }catch(e){ $("sub").textContent="…"+e.message; if(/not connected|expired/.test(e.message)){ $("gate").hidden=false; return; } } await sleep(900); } }
 // ---------------- boot ----------------
