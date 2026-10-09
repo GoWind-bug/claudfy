@@ -136,7 +136,7 @@ body{margin:0;background:linear-gradient(180deg,#101114,#0b0c0e);color:var(--fg)
    </div>
    <div class="struct" id="struct"><canvas id="sc"></canvas><div class="ph" id="phead" style="left:0"></div></div>
    <div class="dmeta"><span id="sub"></span><span id="pos2"></span></div>
-   <div class="tr"><button id="bPrev">⏮ PREV</button><button id="bPlay">▶ / ⏸</button><button id="bSkip">MIX OUT ON PHRASE</button><button id="bLike">♥ LIKE</button><button id="bAuto" title="I choose the next track, time the phrase and ride the layer across the cut">AUTO DJ: OFF</button><button id="bFade" title="auto fades at track ends">FADES: ON</button><button id="bLog">LOG</button></div>
+   <div class="tr"><button id="bPrev">⏮ PREV</button><button id="bPlay">▶ / ⏸</button><button id="bSkip">MIX OUT ON PHRASE</button><button id="bLike">♥ LIKE</button><button id="bXf" title="tell me what Spotify's Crossfade is set to">CROSSFADE: OFF</button><button id="bAuto" title="I choose the next track, time the phrase and ride the layer across the cut">AUTO DJ: OFF</button><button id="bFade" title="auto fades at track ends">FADES: ON</button><button id="bLog">LOG</button></div>
   </section>
 
   <!-- MIXER -->
@@ -225,14 +225,28 @@ S.matchFor=nx=>{ const live=S.state&&S.state.item; const nb=S.bpmFor(nx); if(!li
   const d=(r-1)*100, ad=Math.abs(d); const word=ad<=3?(half?"TIGHT ×2":"TIGHT"):ad<=8?(half?"NUDGE ×2":"NUDGE"):"CLASH"; const cls=ad<=3?"tight":ad<=8?"nudge":"clash";
   return {diff:((nb.bpm-lb)/lb*100).toFixed(0),word,cls,bpm:nb.bpm,known:nb.known}; };
 // the actual mix: ride the live one out on the phrase, cut the new one in past its intro
-S.mixInto=async nx=>{ const p=S.state; if(!p||!p.item) return say("nothing playing"); const it=p.item; const {bpm,known}=S.bpmFor(it); const bar=240/bpm*1000, phrase=bar*8; const pos=p.progress_ms+(Date.now()-S.stateAt); let boundary=Math.ceil((pos+1200)/phrase)*phrase; if(boundary-pos>phrase+100) boundary-=phrase;
-  const c=S.cueFor(nx); const m=S.matchFor(nx);
-  say(`out on the phrase (bar ${Math.round(boundary/bar)}${known?"":"~"}, ${bpm} BPM) → ${nx.name} in at bar ${c.bars+1} (${c.bpm}${c.known?"":"~"} BPM, ${m.diff>0?"+":""}${m.diff}% · ${m.word})`);
-  S.manualFade=true; S.fading=true; const wait=boundary-pos-S.playLatency-bar/2;
+S.xfadeMs=0;   // set to Spotify's Crossfade setting in ms; 0 = off
+S.mixInto=async nx=>{ const p=S.state; if(!p||!p.item) return say("nothing playing"); const it=p.item; const {bpm,known}=S.bpmFor(it);
+  const bar=240/bpm*1000, phrase=bar*8; const pos=p.progress_ms+(Date.now()-S.stateAt);
+  let boundary=Math.ceil((pos+1200)/phrase)*phrase; if(boundary-pos>phrase+100) boundary-=phrase;
+  const c=S.cueFor(nx), m=S.matchFor(nx);
+  const blend=S.xfadeMs>0;
+  say(`${blend?"BLEND":"cut"} on the phrase (bar ${Math.round(boundary/bar)}${known?"":"~"}, ${bpm} BPM) → ${nx.name} in at bar ${c.bars+1} (${c.bpm}${c.known?"":"~"} BPM, ${m.diff>0?"+":""}${m.diff}% · ${m.word})${blend?" · "+(S.xfadeMs/1000)+"s overlap":""}`);
+  S.manualFade=true; S.fading=true;
+  const wait=boundary-pos-S.playLatency-(blend?0:bar/2);
   if(L.armed){ L.bpm=bpm; const lead=Math.min(2*bar,Math.max(0,wait-200)); if(wait-lead>0) await sleep(wait-lead); L.ride(lead/bar,2); if(lead>0) await sleep(lead); }
   else if(wait>0) await sleep(wait);
-  const duck=S.fade(30,bar/2); const t0=Date.now(); try{ await api("PUT","/me/player/play",{context_uri:S.ctxUri,offset:{uri:nx.uri},position_ms:c.ms}); }catch(e){ try{ const tr=await api("GET","/tracks/"+nx.uri.split(":").pop()); await api("PUT","/me/player/play",{context_uri:tr.album.uri,offset:{uri:nx.uri},position_ms:c.ms}); }catch(e2){ await api("POST","/me/player/next"); } } S.playLatency=Math.round(0.7*S.playLatency+0.3*(Date.now()-t0));
-  await duck; await S.fade(S.target,bar*2); S.fading=false; setTimeout(()=>S.manualFade=false,2500); S.lastUri=nx.uri; say(`cut on the 1 → ${nx.name}`,true); };
+  // with crossfade on, Spotify does the blend — ducking would fight it, so the fader stays put
+  const duck=blend?null:S.fade(30,bar/2); const t0=Date.now();
+  try{ await api("PUT","/me/player/play",{context_uri:S.ctxUri,offset:{uri:nx.uri},position_ms:c.ms}); }
+  catch(e){ try{ const tr=await api("GET","/tracks/"+nx.uri.split(":").pop()); await api("PUT","/me/player/play",{context_uri:tr.album.uri,offset:{uri:nx.uri},position_ms:c.ms}); }catch(e2){ await api("POST","/me/player/next"); } }
+  S.playLatency=Math.round(0.7*S.playLatency+0.3*(Date.now()-t0));
+  if(duck){ await duck; await S.fade(S.target,bar*2); }
+  S.fading=false; setTimeout(()=>S.manualFade=false,blend?S.xfadeMs+1500:2500); S.lastUri=nx.uri;
+  say(blend?`blending — both tracks up for ${S.xfadeMs/1000}s`:`cut on the 1 → ${nx.name}`,true); };
+S.setXfade=ms=>{ S.xfadeMs=ms; const b=$("bXf"); if(b){ b.textContent="CROSSFADE: "+(ms?ms/1000+"S":"OFF"); b.classList.toggle("on",!!ms); }
+  if(ms){ S.auto=false; $("bFade").textContent="FADES: OFF"; $("bFade").classList.remove("on"); }
+  say(ms?"crossfade "+(ms/1000)+"s — transitions are real overlaps now, my end-of-track fades are off":"crossfade off — back to fade out / fade in"); };
 S.smartSkip=async()=>{ const nx=(S.deckQ||[])[0]||await api("GET","/me/player/queue").then(q=>(q.queue||[])[0]).catch(()=>null); if(!nx) return S.next(); return S.mixInto(nx); };
 S.bringIn=async i=>{ const nx=(S.deckQ||[])[i]; if(!nx) return say("deck empty"); return S.mixInto(nx); };
 // ---------------- moods ----------------
@@ -245,6 +259,7 @@ S.cmd=async raw=>{ const t=raw.trim(); if(!t) return; const l=t.toLowerCase(); s
   if(l==="skip"||l==="next") return S.smartSkip(); if(l==="hard skip") return S.next();
   { const dm=l.match(/^(?:bring\s*in|deck|mix\s*in)\s*([bcd])$/); if(dm) return S.bringIn("bcd".indexOf(dm[1])); }
   { const am=l.match(/^auto( dj)?\s*(on|off)?$/); if(am) return S.setAuto(am[2]?am[2]==="on":!S.autoDJ); }
+  { const xm=l.match(/^crossfade\s*(off|\d+)?$/); if(xm) return S.setXfade(!xm[1]||xm[1]==="off"?0:+xm[1]*1000); }
   if(l==="arm"||l==="layer on"){ await L.arm(); L.syncToTrack(); S.xfApply(); return say(L.armed?"layer armed · "+L.bpm+" BPM":"browser blocked it — click the page once",true); }
   { const lm=l.match(/^(?:loop|layer)\s*(on|off)$/); if(lm) return L.setLoop(lm[1]==="on"); }
   { const pm=l.match(/^(?:pattern|pat)\s+(perc|four|hats|roll)/); if(pm){ L.pat=pm[1]; $("pat").value=pm[1]; return say("layer pattern → "+pm[1],true); } }
@@ -360,6 +375,7 @@ $("cmdf").onsubmit=e=>{ e.preventDefault(); const v=$("cmd").value; $("cmd").val
 $("bPrev").onclick=()=>api("POST","/me/player/previous").catch(e=>say("✖ "+e.message)); $("bPlay").onclick=async()=>{ try{ const p=S.state; if(p&&p.is_playing) await api("PUT","/me/player/pause"); else if(p&&p.device) await api("PUT","/me/player/play"); else await S.wake(); }catch(e){ say("✖ "+e.message); } };
 $("bSkip").onclick=()=>S.smartSkip(); $("bLike").onclick=()=>S.like(); $("bLog").onclick=()=>{ $("log").hidden=!$("log").hidden; };
 $("bAuto").onclick=()=>S.setAuto(!S.autoDJ);
+$("bXf").onclick=()=>{ const n=[0,6000,8000,10000,12000]; S.setXfade(n[(n.indexOf(S.xfadeMs)+1)%n.length]); };
 $("bFade").onclick=()=>{ S.auto=!S.auto; $("bFade").textContent="FADES: "+(S.auto?"ON":"OFF"); $("bFade").classList.toggle("on",S.auto); };
 $("vol").value=S.target; $("v1").textContent=S.target;
 $("vol").oninput=e=>{ $("v1").textContent=e.target.value; };
