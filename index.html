@@ -231,7 +231,7 @@ S.mixInto=async nx=>{ const p=S.state; if(!p||!p.item) return say("nothing playi
   S.manualFade=true; S.fading=true; const wait=boundary-pos-S.playLatency-bar/2;
   if(L.armed){ L.bpm=bpm; const lead=Math.min(2*bar,Math.max(0,wait-200)); if(wait-lead>0) await sleep(wait-lead); L.ride(lead/bar,2); if(lead>0) await sleep(lead); }
   else if(wait>0) await sleep(wait);
-  const duck=S.fade(30,bar/2); const t0=Date.now(); try{ await api("PUT","/me/player/play",{context_uri:S.ctxUri,offset:{uri:nx.uri},position_ms:c.ms}); }catch(e){ await api("POST","/me/player/next"); } S.playLatency=Math.round(0.7*S.playLatency+0.3*(Date.now()-t0));
+  const duck=S.fade(30,bar/2); const t0=Date.now(); try{ await api("PUT","/me/player/play",{context_uri:S.ctxUri,offset:{uri:nx.uri},position_ms:c.ms}); }catch(e){ try{ const tr=await api("GET","/tracks/"+nx.uri.split(":").pop()); await api("PUT","/me/player/play",{context_uri:tr.album.uri,offset:{uri:nx.uri},position_ms:c.ms}); }catch(e2){ await api("POST","/me/player/next"); } } S.playLatency=Math.round(0.7*S.playLatency+0.3*(Date.now()-t0));
   await duck; await S.fade(S.target,bar*2); S.fading=false; setTimeout(()=>S.manualFade=false,2500); S.lastUri=nx.uri; say(`cut on the 1 → ${nx.name}`,true); };
 S.smartSkip=async()=>{ const nx=(S.deckQ||[])[0]||await api("GET","/me/player/queue").then(q=>(q.queue||[])[0]).catch(()=>null); if(!nx) return S.next(); return S.mixInto(nx); };
 S.bringIn=async i=>{ const nx=(S.deckQ||[])[i]; if(!nx) return say("deck empty"); return S.mixInto(nx); };
